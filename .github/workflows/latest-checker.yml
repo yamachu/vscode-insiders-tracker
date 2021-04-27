@@ -1,0 +1,30 @@
+name: latest check
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: check
+      run: |
+        latest_version=`cat windows.csv|cut -d',' -f2|sed -e 's/"//g'| tail -n 1`
+        response=`curl -H "User-Agent: contact https://github.com/yamachu/vscode-insiders-tracker" ${{ secrets.version_check_url }}/${latest_version} -w '\n%{http_code}' -s`
+        status_code=`echo "$response" | tail -n 1`
+        if [ $status_code = 204 ]; then
+          exit 0
+        fi
+        echo "$response" | sed '$d' | jq -r '[.url, .version, .productVersion, .timestamp]|@csv' >> windows.csv
+
+        git add -N windows.csv # ref: https://zenn.dev/snowcait/articles/18c9137f49e378
+        if ! git diff --exit-code --quiet
+        then
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add windows.csv
+          git commit -m "New versions released"
+          git push
+        fi
