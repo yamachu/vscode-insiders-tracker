@@ -25,13 +25,29 @@ jobs:
           exit 0
         fi
         echo "$response" | sed '$d' | jq -r '[.url, .version, .productVersion, .timestamp]|@csv' >> ${{ matrix.filename }}
-
+    - name: commit
+      run: |
         git add -N ${{ matrix.filename }} # ref: https://zenn.dev/snowcait/articles/18c9137f49e378
         if ! git diff --exit-code --quiet
         then
           git config user.name github-actions
           git config user.email github-actions@github.com
+          git checkout -b ci/${{ matrix.platform }}
           git add ${{ matrix.filename }}
-          git commit -m "New versions released"
-          git push
+          git commit -m "New versions released: ${{ matrix.filename }}"
+          git push origin HEAD
         fi
+
+  push:
+    needs: [check]
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - run: |
+        git config user.name github-actions
+        git config user.email github-actions@github.com
+        git fetch
+        (git checkout ci/win32-x64 && git checkout - && git merge ci/win32-x64 && git branch -D ci/win32-x64 && git push --delete origin ci/win32-x64) || true
+        (git checkout ci/darwin && git checkout - && git merge ci/darwin && git branch -D ci/darwin && git push --delete origin ci/darwin) || true
+        git status
+        git push
