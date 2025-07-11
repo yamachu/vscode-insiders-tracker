@@ -10,7 +10,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - run: |
-        ./run.sh darwin darwin.csv
+        ./run.sh darwin-universal darwin.csv
         ./run.sh win32-x64 windows.csv
     - name: commit
       run: |
